@@ -31,6 +31,8 @@ class FeedForwardNet(nn.Module):
             nn.Linear(28*28, 256),
             # first param is number of input features, second param is number of output features
             # 28*28 for the number of pixels in a 28 x 28 grid
+            # 256 output features is just an arbitrary number
+            # we can tweak the number of output features and hidden layers
             nn.ReLU(),
             nn.Linear(256, 10),
             # 10 since there are 10 digits
