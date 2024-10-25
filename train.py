@@ -5,6 +5,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
+import time
 
 ######## STEPS ########
 # 1. download dataset
@@ -30,6 +31,8 @@ class FeedForwardNet(nn.Module):
             nn.Linear(28*28, 256),
             # first param is number of input features, second param is number of output features
             # 28*28 for the number of pixels in a 28 x 28 grid
+            # 256 output features is just an arbitrary number
+            # we can tweak the number of output features and hidden layers
             nn.ReLU(),
             nn.Linear(256, 10),
             # 10 since there are 10 digits
@@ -84,11 +87,17 @@ def train_one_epoch(model, data_loader, loss_fn, optimizer, device):
 
 
 def train(model, data_loader, loss_fn, optimizer, device, epochs):
+    total_start_time = time.time()
     for i in range(epochs):
         print(f"Epoch: {i+1}")
+        epoch_start_time = time.time()
         train_one_epoch(model, data_loader, loss_fn, optimizer, device)
+        print(
+            f"Time taken: {round(time.time() - epoch_start_time, 2)} seconds")
         print("-----------------------")
     print("Training complete")
+    print(
+        f"Total time taken: {round(time.time() - total_start_time, 2)} seconds")
 
 
 if __name__ == "__main__":
