@@ -11,10 +11,11 @@ import torchaudio
 
 class UrbanSoundDataset(Dataset):
 
-    def __init__(self, annotations_file, audio_dir, transformation, target_sample_rate, num_samples):
+    def __init__(self, annotations_file, audio_dir, transformation, target_sample_rate, num_samples, device):
         self.annotations = pd.read_csv(annotations_file)
         self.audio_dir = audio_dir
-        self.transformation = transformation
+        self.device = device
+        self.transformation = transformation.to(self.device)
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
 
@@ -28,6 +29,8 @@ class UrbanSoundDataset(Dataset):
         label = self._get_audio_sample_label(index)
         # signal : (num_channels, samples)
         signal, sr = torchaudio.load(audio_sample_path)
+        # register signal onto device
+        signal = signal.to(self.device)
         # different signals have different sample rates,
         # but we want the mel spectrograms to be uniform in shape
         signal = self._resample_if_necessary(signal, sr)
@@ -65,7 +68,7 @@ class UrbanSoundDataset(Dataset):
         # only resample if the sr is different from the target sr
         if (sr != self.target_sample_rate):
             resampler = torchaudio.transforms.Resample(
-                sr, self.target_sample_rate)
+                sr, self.target_sample_rate).to(self.device)
             signal = resampler(signal)
         return signal
 
@@ -97,6 +100,9 @@ if __name__ == "__main__":
     NUM_SAMPLES = 22050
     # so duration of all samples = NUM_SAMPLES / SAMPLE_RATE
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device {device}")
+
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=1024,
@@ -109,7 +115,8 @@ if __name__ == "__main__":
         AUDIO_DIR,
         mel_spectrogram,
         SAMPLE_RATE,
-        NUM_SAMPLES
+        NUM_SAMPLES,
+        device
     )
 
     print(f"There are {len(usd)} samples in the dataset")
