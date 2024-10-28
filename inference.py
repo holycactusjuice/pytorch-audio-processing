@@ -1,21 +1,23 @@
-# tutorial: https://www.youtube.com/watch?v=0Q5KTt2R5w4&list=PL-wATfeyAMNoirN4idjev6aRu8ISZYVWm&index=3&ab_channel=ValerioVelardo-TheSoundofAI
-
 import torch
-from train import FeedForwardNet, download_mnist_datasets
+import torchaudio
 
-MODEL_PATH = "feedforwardnet.pth"
+from cnn import CNN
+from urban_sound_dataset import UrbanSoundDataset
+from train import AUDIO_DIR, ANNOTATIONS_FILE, SAMPLE_RATE, NUM_SAMPLES
+
+MODEL_PATH = "cnn.pth"
 
 class_mapping = [
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
+    "air_conditioner",
+    "car_horn",
+    "children_playing",
+    "dog_bark",
+    "drilling",
+    "engine_idling",
+    "gun_shot",
+    "jackhammer",
+    "siren",
+    "street_music"
 ]
 
 
@@ -32,12 +34,14 @@ def predict(model, input, target, class_mapping):
     return predicted, expected
 
 
-def calculate_accuracy(model, validation_data, class_mapping):
+def calculate_accuracy(model, dataset, class_mapping):
     total = 0
     correct = 0
     # get sample from validation dataset for inference
     # first index is tensor object, second index is target
-    for input, target in validation_data:
+    for i in range(len(dataset)):
+        input, target = dataset[i][0], dataset[i][1]
+        input.unsqueeze_(0)
         predicted, expected = predict(model, input, target, class_mapping)
         total += 1
         if predicted == expected:
@@ -49,19 +53,39 @@ def calculate_accuracy(model, validation_data, class_mapping):
 
 
 if __name__ == "__main__":
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    print(f"Using {device} device")
+
     # load model
-    feed_forward_net = FeedForwardNet()
+    cnn = CNN().to(device)
     # get the model parameters
     state_dict = torch.load(MODEL_PATH)
     # load the model with model parameters
-    feed_forward_net.load_state_dict(state_dict=state_dict)
+    cnn.load_state_dict(state_dict=state_dict)
 
-    # load MNIST validation dataset
     # get validation data (not using train data)
-    _, validation_data = download_mnist_datasets()
+    mel_spectrogram = torchaudio.transforms.MelSpectrogram(
+        sample_rate=SAMPLE_RATE,
+        n_fft=1024,
+        hop_length=512,
+        n_mels=64
+    )
+
+    usd = UrbanSoundDataset(
+        ANNOTATIONS_FILE,
+        AUDIO_DIR,
+        mel_spectrogram,
+        SAMPLE_RATE,
+        NUM_SAMPLES,
+        device
+    )
 
     # calculate accuracy
     model_accuracy = calculate_accuracy(
-        feed_forward_net, validation_data, class_mapping)
+        cnn, usd, class_mapping)
 
     print(f"Model accuracy: {model_accuracy * 100} %")
